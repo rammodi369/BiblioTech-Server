@@ -182,18 +182,40 @@ exports.getUserHistory = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
- exports.paymentHandler=async (req, res) => {
-  const { amount } = req.body; // amount should be in cents
+exports.paymentHandler = async (req, res) => {
+  const { amount, user } = req.body;
+
   try {
+    console.log("User:", user);
+    
+    // Use the correct ID field
+    const userId = user._id || user.id; 
+    console.log("User ID:", userId);
+
+    // Create Stripe PaymentIntent
     const paymentIntent = await stripe.paymentIntents.create({
-      amount,             // e.g., 5000 for $50.00
+      amount,
       currency: 'inr',
       payment_method_types: ['card'],
+      description: `Library fine payment for ${user.username}`
     });
 
-    res.json({ clientSecret: paymentIntent.client_secret });
+    // Find and update the user's fine
+    const userO = await User.findById(userId);
+    if (!userO) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    userO.fine = 0;
+    await userO.save();
+
+    res.json({ 
+      clientSecret: paymentIntent.client_secret,
+      user: userO // send updated user back
+    });
   } catch (error) {
     console.error("Error creating PaymentIntent:", error);
     res.status(500).json({ error: error.message });
   }
-}
+};
+

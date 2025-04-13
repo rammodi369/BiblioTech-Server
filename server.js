@@ -14,6 +14,7 @@ const adminRoutes=require('./Routes/adminRoutes');
 const feedbackRoutes=require('./Routes/feedbackRoutes');
 const userHistoryRoutes=require('./Routes/userHistoryRoutes');
 const questionRoutes=require('./Routes/questionBankRoutes')
+const materialRoutes= require('./Routes/materialRoutes');
 const cors = require('cors');
 
 connectDB();
@@ -31,6 +32,7 @@ app.use('/api/admin',adminRoutes);
 app.use('/api/feedback',feedbackRoutes);
 app.use('/api/user-history',userHistoryRoutes);
 app.use('/api/questions',questionRoutes);
+app.use('/api/material',materialRoutes);
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 
