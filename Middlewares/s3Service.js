@@ -251,7 +251,11 @@
 //   return await s3client.send(new PutObjectCommand(params));
 // };
 const AWS = require('aws-sdk');
-
+AWS.config.update({
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  region: process.env.AWS_REGION,
+});
 const s3 = new AWS.S3({
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
   secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
@@ -289,7 +293,7 @@ exports.uploadFileToS3 = async (file) => {
     console.log("✅ Upload successful!");
     console.log("🌐 File URL:", data.Location);
 
-    return data;
+    return data.Location;
   } catch (error) {
     console.error("❌ S3 Upload Error:", error.message);
     throw error;

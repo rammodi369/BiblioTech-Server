@@ -1,21 +1,23 @@
 const StudyMaterial = require('../Model/studyMaterial');
+const { uploadFileToS3 } = require('../Middlewares/s3Service');
 
-// Upload study material
 exports.uploadMaterial = async (req, res) => {
   try {
-    const { title, subject, description,Category } = req.body;
+    const { title, subject, description, Category } = req.body;
 
     if (!req.file) {
       return res.status(400).json({ message: 'No file uploaded' });
     }
+
+    const s3Url = await uploadFileToS3(req.file);
 
     const newMaterial = new StudyMaterial({
       title,
       subject,
       Category,
       description,
-      fileUrl: req.file.path, // Save file path from multer
-      fileType: req.file.mimetype.split('/')[1], // e.g., 'pdf', 'docx'
+      fileUrl: s3Url,
+      fileType: req.file.mimetype.split('/')[1],
     });
 
     const savedMaterial = await newMaterial.save();

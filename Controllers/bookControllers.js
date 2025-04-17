@@ -1,6 +1,6 @@
 const Book = require('../Model/bookModel');
 const User = require('../Model/userModel');
-
+const { uploadFileToS3 } = require('../Middlewares/s3Service');
 
 // exports.addBook = async (req, res) => {
 //   const { title, author, isbn, category, description, yearOfPublication, quantity } = req.body;
@@ -42,17 +42,25 @@ exports.getMultipleBooks = async (req, res) =>{
     res.status(405).end(`Method ${req.method} Not Allowed`);
   }
 }
+ // adjust path
+
 exports.addBook = async (req, res) => {
   const { title, author, isbn, category, description, yearOfPublication, quantity } = req.body;
 
   try {
-    // Check if the book already exists
     const existingBook = await Book.findOne({ isbn });
     if (existingBook) {
       return res.status(400).json({ message: 'Book with this ISBN already exists!' });
     }
 
-    // Create a new book with the PDF file URL
+    let pdfUrl = null;
+
+    if (req.file) {
+      console.log('Uploading file to S3...');
+      pdfUrl = await uploadFileToS3(req.file); // ⬅️ upload to S3 and get URL
+      console.log('Uploaded PDF URL:', pdfUrl);
+    }
+
     const newBook = new Book({
       title,
       author,
@@ -63,12 +71,14 @@ exports.addBook = async (req, res) => {
       quantity,
       addedBy: req.user.id,
       availability: quantity > 0 ? 'available' : 'outOfStock',
-      pdfUrl: req.file ? req.file.path : null, // Add the PDF file path if it exists
+      pdfUrl, // ⬅️ store the S3 file URL
     });
 
     const savedBook = await newBook.save();
     res.status(201).json(savedBook);
+
   } catch (error) {
+    console.error('Error adding book:', error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -112,7 +122,7 @@ exports.getBooks = async (req, res) => {
     const skip = (adjustedPage - 1) * limit;
 
     // Fetch books for the current page
-    const books = await Book.find().skip(skip).limit(limit);
+    const books = await Book.find();
 
     res.json({
       books,
