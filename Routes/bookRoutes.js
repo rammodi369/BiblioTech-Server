@@ -29,8 +29,8 @@ router.route('/:id')
   .delete(protect, librarian, deleteBook);
 
 router.route('/by-ids').post(protect, getBooksByIds);
-
-router.get('/history/:bookId', protect, authorize('admin', 'librarian'), getBookHistory);
 router.get('/history/borrowing',protect, authorize('admin', 'librarian'),getCompleteBooksHistory);
+router.get('/history/:bookId', protect, authorize('admin', 'librarian'), getBookHistory);
+
 
 module.exports = router;
