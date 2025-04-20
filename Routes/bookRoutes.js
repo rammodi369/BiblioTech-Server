@@ -31,6 +31,6 @@ router.route('/:id')
 router.route('/by-ids').post(protect, getBooksByIds);
 
 router.get('/history/:bookId', protect, authorize('admin', 'librarian'), getBookHistory);
-router.get('/history', protect, authorize('admin', 'librarian'),getCompleteBooksHistory);
+router.get('/history/borrowing',protect, authorize('admin', 'librarian'),getCompleteBooksHistory);
 
 module.exports = router;
