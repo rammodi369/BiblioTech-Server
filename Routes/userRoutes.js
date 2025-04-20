@@ -12,10 +12,11 @@ router.post('/logout',userController.logoutUser);
 // Pwd Reset
 router.post('/forgot-password', authController.forgotPassword);
 router.post('/reset-password', authController.resetPassword);
-
+router.get('/user/:id', authMiddleware.protect, userController.getUserProfileData)
 //Profile
-router.get('/profile/:id',authMiddleware.protect,authMiddleware.selfAuth,userController.getUserById);
+router.get('/profile/:id',authMiddleware.protect,userController.getUserById);
 router.post('/create-payment-intent',userController.paymentHandler);
+router.post('/mark-fine-paid',userController.markFinePaid);
 router.post('/reset-fine', 
     protect, 
     async (req, res) => {
