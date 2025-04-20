@@ -214,7 +214,8 @@ exports.getBookHistory = async (req, res) => {
     if (!book) {
       return res.status(404).json({ message: 'Book not found' });
     }
-    res.json(book.borrowHistory);
+    
+    res.json(book.usersHistory);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
