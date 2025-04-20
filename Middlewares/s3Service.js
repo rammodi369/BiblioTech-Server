@@ -250,17 +250,68 @@
 
 //   return await s3client.send(new PutObjectCommand(params));
 // };
+// const AWS = require('aws-sdk');
+
+// const s3 = new AWS.S3({
+//   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+//   secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+//   region: process.env.AWS_REGION,
+// });
+
+// exports.uploadFileToS3 = async (file) => {
+//   try {
+//     if (!file) {
+//       console.error("❌ No file provided for upload.");
+//       throw new Error("No file provided");
+//     }
+
+//     const bucketName = process.env.AWS_S3_BUCKET_NAME;
+//     if (!bucketName) {
+//       console.error("❌ Missing AWS_S3_BUCKET_NAME in environment variables.");
+//       throw new Error("Missing AWS_S3_BUCKET_NAME in environment variables.");
+//     }
+
+//     const fileKey = `uploads/${Date.now()}_${file.originalname}`;
+
+//     console.log("📦 Starting S3 upload...");
+//     console.log(`🪣 Bucket: ${bucketName}`);
+//     console.log(`📄 File Key: ${fileKey}`);
+
+//     const params = {
+//       Bucket: bucketName,
+//       Key: fileKey,
+//       Body: file.buffer,
+//       ContentType: file.mimetype,
+//     };
+
+//     const data = await s3.upload(params).promise();
+
+//     console.log("✅ Upload successful!");
+//     console.log("🌐 File URL:", data.Location);
+
+//     return data.Location;
+//   } catch (error) {
+//     console.error("❌ S3 Upload Error:", error.message);
+//     throw error;
+//   }
+// };
 const AWS = require('aws-sdk');
+
+// Validate and log credential presence (for debug)
+if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY || !process.env.AWS_REGION) {
+  console.error("❌ Missing AWS credentials or region in environment variables.");
+  throw new Error("AWS credentials or region are missing.");
+}
+
+// Configure AWS globally (optional)
 AWS.config.update({
-  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  region: process.env.AWS_REGION,
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID.trim(),
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY.trim(),
+  region: process.env.AWS_REGION.trim(),
 });
-const s3 = new AWS.S3({
-  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  region: process.env.AWS_REGION,
-});
+
+// Create the S3 instance
+const s3 = new AWS.S3();
 
 exports.uploadFileToS3 = async (file) => {
   try {
@@ -295,7 +346,7 @@ exports.uploadFileToS3 = async (file) => {
 
     return data.Location;
   } catch (error) {
-    console.error("❌ S3 Upload Error:", error.message);
+    console.error("❌ S3 Upload Error:", error.stack || error.message);
     throw error;
   }
 };
