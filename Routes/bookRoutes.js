@@ -6,7 +6,8 @@ const {
   updateBook,
   deleteBook,
   getBookHistory,
-  getBooksByIds
+  getBooksByIds,
+  getCompleteBooksHistory
 } = require('../Controllers/bookControllers');
 const { protect, librarian,authorize } = require('../Middlewares/authMiddleware');
 const upload = require('../Middlewares/upload'); 
@@ -30,6 +31,6 @@ router.route('/:id')
 router.route('/by-ids').post(protect, getBooksByIds);
 
 router.get('/history/:bookId', protect, authorize('admin', 'librarian'), getBookHistory);
-
+router.get('/history', protect, authorize('admin', 'librarian'),getCompleteBooksHistory);
 
 module.exports = router;
