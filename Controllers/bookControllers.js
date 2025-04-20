@@ -220,6 +220,31 @@ exports.getBookHistory = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+exports.getCompleteBooksHistory = async (req, res) => {
+  try {
+    const books = await Book.find().populate('usersHistory.user', 'username email');
+
+    const historyList = books.map(book => {
+      return {
+        bookId: book._id,
+        title: book.title,
+        history: book.usersHistory.map(entry => ({
+          userId: entry.user?._id,
+          username: entry.user?.username,
+          email: entry.user?.email,
+          borrowedAt: entry.borrowedAt,
+          returnedAt: entry.returnedAt || null,
+          status: entry.returnedAt ? 'Returned' : 'Borrowed'
+        }))
+      };
+    });
+
+    res.json(historyList);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 
 
 
