@@ -86,7 +86,22 @@ exports.logoutUser = (req, res) => {
       res.status(500).send('Server Error');
     }
   };
-
+  exports.markFinePaid = async (req, res) => {
+    const { userId } = req.body;
+  
+    try {
+      const user = await User.findById(userId);
+      if (!user) return res.status(404).json({ error: 'User not found' });
+  
+      user.fine = 0;
+      await user.save();
+  
+      res.json({ message: 'Fine cleared successfully', user });
+    } catch (error) {
+      console.error("Error updating fine:", error);
+      res.status(500).json({ error: error.message });
+    }
+  };
 
 
   // USER DETAILS...
@@ -102,6 +117,7 @@ exports.getAllUsers = async (req, res) => {
 
 // Get user by ID (GET /api/admin/users/:userId)
 exports.getUserById = async (req, res) => {
+  console.log('here');
   try {
     const user = await User.findById(req.params.userId).select('-password');
     if (!user) {
@@ -182,17 +198,28 @@ exports.getUserHistory = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+// Route: POST /api/auth/mark-fine-paid
+exports.markFinePaid = async (req, res) => {
+  const { userId } = req.body;
+
+  try {
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    user.fine = 0;
+    await user.save();
+
+    res.json({ message: 'Fine cleared successfully', user });
+  } catch (error) {
+    console.error("Error updating fine:", error);
+    res.status(500).json({ error: error.message });
+  }
+};
+// Route: POST /api/auth/create-payment-intent
 exports.paymentHandler = async (req, res) => {
   const { amount, user } = req.body;
 
   try {
-    console.log("User:", user);
-    
-    // Use the correct ID field
-    const userId = user._id || user.id; 
-    console.log("User ID:", userId);
-
-    // Create Stripe PaymentIntent
     const paymentIntent = await stripe.paymentIntents.create({
       amount,
       currency: 'inr',
@@ -200,18 +227,8 @@ exports.paymentHandler = async (req, res) => {
       description: `Library fine payment for ${user.username}`
     });
 
-    // Find and update the user's fine
-    const userO = await User.findById(userId);
-    if (!userO) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    userO.fine = 0;
-    await userO.save();
-
-    res.json({ 
-      clientSecret: paymentIntent.client_secret,
-      user: userO // send updated user back
+    res.json({
+      clientSecret: paymentIntent.client_secret
     });
   } catch (error) {
     console.error("Error creating PaymentIntent:", error);
@@ -219,3 +236,33 @@ exports.paymentHandler = async (req, res) => {
   }
 };
 
+
+exports.getUserProfileData = async (req, res) => {
+  console.log('here');
+  try {
+    const userId = req.params.id; // ✅ Get from URL params
+
+    if (!userId) return res.status(400).json({ message: "User ID is required" });
+
+    const user = await User.findById(userId).lean();
+
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+   // const borrowedBooks = await Book.find({ _id: { $in: user.booksBorrowed } });
+   // const currentBooks = await Book.find({ _id: { $in: user.booksBorrowingCurrently } });
+
+    return res.status(200).json({
+      _id: user._id,
+      username: user.username,
+      email: user.email,
+      role: user.role,
+      fine: user.fine,
+      avatar: user.avatar || null,
+      booksBorrowed: user.booksBorrowed,
+      booksBorrowingCurrently: user.booksBorrowingCurrently,
+    });
+  } catch (error) {
+    console.error("Error fetching user profile data:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
