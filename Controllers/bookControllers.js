@@ -214,13 +214,16 @@ exports.getBookHistory = async (req, res) => {
     if (!book) {
       return res.status(404).json({ message: 'Book not found' });
     }
-    
-    res.json(book.usersHistory);
+    res.json(book.borrowHistory);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
+
+
+
 exports.getCompleteBooksHistory = async (req, res) => {
+  console.log('here');
   try {
     const books = await Book.find().populate('usersHistory.user', 'username email');
 
@@ -241,10 +244,8 @@ exports.getCompleteBooksHistory = async (req, res) => {
 
     res.json(historyList);
   } catch (error) {
+    console.error(error);
+    console.log(error);
     res.status(500).json({ message: error.message });
   }
 };
-
-
-
-
