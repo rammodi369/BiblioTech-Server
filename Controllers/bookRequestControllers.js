@@ -425,33 +425,40 @@ exports.createBookRequest = async (req, res) => {
     const book = await Book.findById(bookId);
     if (!book) return res.status(404).json({ message: 'Book not found' });
 
-    // Check if user already borrowed this book
-    const isAlreadyBorrowing = user.booksBorrowingCurrently.some(
+    const isCurrentlyBorrowing = user.booksBorrowingCurrently.some(
       (bId) => bId.toString() === bookId
     );
-    if (isAlreadyBorrowing) {
-      return res.status(400).json({ message: 'You are already borrowing this book.' });
+
+    if (requestType === 'borrow') {
+      if (isCurrentlyBorrowing) {
+        return res.status(400).json({ message: 'You are already borrowing this book.' });
+      }
+
+      if (user.booksBorrowingCurrently.length >= 3) {
+        return res.status(400).json({ message: 'Borrowing limit reached. Return some books to borrow new ones.' });
+      }
+
+      // Prevent borrowing again within 30 days
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const recentReturn = await BookRequest.findOne({
+        user: userId,
+        book: bookId,
+        status: 'returned',
+        responseDate: { $gte: thirtyDaysAgo },
+      });
+      if (recentReturn) {
+        return res.status(400).json({ message: 'You have already accessed this book in the past 30 days. Please try another one.' });
+      }
     }
 
-    // Check borrowing limit
-    if (user.booksBorrowingCurrently.length >= 3) {
-      return res.status(400).json({ message: 'Borrowing limit reached. Return some books to borrow new ones.' });
+    if (requestType === 'return') {
+      if (!isCurrentlyBorrowing) {
+        return res.status(400).json({ message: 'You cannot return a book you have not borrowed.' });
+      }
     }
 
-    // ❌ Prevent borrowing if returned within the last 30 days
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const recentReturn = await BookRequest.findOne({
-      user: userId,
-      book: bookId,
-      status: 'returned',
-      responseDate: { $gte: thirtyDaysAgo },
-    });
-    if (recentReturn) {
-      return res.status(400).json({ message: 'You have already accessed this book in the past 30 days. Please try another one.' });
-    }
-
-    // Check for existing pending requests
+    // Prevent duplicate pending requests
     const existingPendingRequest = await BookRequest.findOne({
       user: userId,
       book: bookId,
@@ -461,12 +468,6 @@ exports.createBookRequest = async (req, res) => {
       return res.status(400).json({ message: 'You already have a pending request for this book.' });
     }
 
-    // Check for last request still unresolved
-    const lastRequest = await BookRequest.findOne({ user: userId, book: bookId }).sort({ createdAt: -1 });
-    if (lastRequest && lastRequest.status === 'pending') {
-      return res.status(400).json({ message: 'You have an unresolved request for this book.' });
-    }
-
     const bookRequest = new BookRequest({ user: userId, book: bookId, requestType });
     const savedRequest = await bookRequest.save();
     res.status(201).json(savedRequest);
@@ -474,6 +475,7 @@ exports.createBookRequest = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
 
 // Librarian approves/rejects a book request
 exports.respondToRequest = async (req, res) => {
