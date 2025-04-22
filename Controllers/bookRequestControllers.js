@@ -438,6 +438,19 @@ exports.createBookRequest = async (req, res) => {
       return res.status(400).json({ message: 'Borrowing limit reached. Return some books to borrow new ones.' });
     }
 
+    // ❌ Prevent borrowing if returned within the last 30 days
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const recentReturn = await BookRequest.findOne({
+      user: userId,
+      book: bookId,
+      status: 'returned',
+      responseDate: { $gte: thirtyDaysAgo },
+    });
+    if (recentReturn) {
+      return res.status(400).json({ message: 'You have already accessed this book in the past 30 days. Please try another one.' });
+    }
+
     // Check for existing pending requests
     const existingPendingRequest = await BookRequest.findOne({
       user: userId,
@@ -448,7 +461,7 @@ exports.createBookRequest = async (req, res) => {
       return res.status(400).json({ message: 'You already have a pending request for this book.' });
     }
 
-    // Allow new request only if the last request was rejected or completed
+    // Check for last request still unresolved
     const lastRequest = await BookRequest.findOne({ user: userId, book: bookId }).sort({ createdAt: -1 });
     if (lastRequest && lastRequest.status === 'pending') {
       return res.status(400).json({ message: 'You have an unresolved request for this book.' });
@@ -477,10 +490,11 @@ exports.respondToRequest = async (req, res) => {
     if (request.requestType === 'borrow' && status === 'approved') {
       if (book.quantity <= 0) return res.status(400).json({ message: 'Book out of stock' });
 
-      // Additional check to prevent bypass
+      // Additional check
       if (user.booksBorrowingCurrently.length >= 3) {
         return res.status(400).json({ message: 'Borrowing limit reached. Return previous books first.' });
       }
+
       const alreadyBorrowing = user.booksBorrowingCurrently.some(
         (bId) => bId.toString() === book._id.toString()
       );
@@ -508,7 +522,6 @@ exports.respondToRequest = async (req, res) => {
       user.booksBorrowed.push(book._id);
       await user.save();
 
-      // Update borrow history
       const historyItem = book.usersHistory.find(
         (entry) => entry.user.toString() === user._id.toString() && !entry.returnedAt
       );
@@ -518,7 +531,6 @@ exports.respondToRequest = async (req, res) => {
         historyItem.returnedAt = returnDate;
         await book.save();
 
-        // Fine calculation (after 7 days)
         const daysBorrowed = Math.ceil((returnDate - borrowDate) / (1000 * 60 * 60 * 24));
         if (daysBorrowed > 7) {
           user.fine += (daysBorrowed - 7) * 20;
@@ -527,7 +539,7 @@ exports.respondToRequest = async (req, res) => {
       }
     }
 
-    request.status = status;
+    request.status = status === 'approved' && request.requestType === 'return' ? 'returned' : status;
     request.responseDate = new Date();
     await request.save();
     res.json(request);
@@ -547,3 +559,4 @@ exports.getAllRequests = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
