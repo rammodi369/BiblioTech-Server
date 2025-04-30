@@ -44,10 +44,19 @@ app.use((err, req, res, next) => {
   });
   
 
-app.listen(PORT,()=>{
-    console.log("Server is running on PORT :",PORT);
-    await calculateAllFines();
-})
+app.listen(PORT, () => {
+    console.log("Server is running on PORT:", PORT);
+    runAfterServerStart();
+});
+
+async function runAfterServerStart() {
+    try {
+        await calculateAllFines();
+        console.log("Fines calculated successfully.");
+    } catch (error) {
+        console.error("Error calculating fines:", error);
+    }
+}
 app.post('/create-order', async (req, res) => {
   const { amount, currency, receipt } = req.body;
   const options = {
