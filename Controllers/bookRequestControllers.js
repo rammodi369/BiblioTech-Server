@@ -637,7 +637,10 @@ exports.calculateAllFines = async () => {
 
   console.log('All fines updated on website load');
 };
-
+const calculateFine = (borrowedAt, returnedAt, freeDays = 21, finePerDay = 1) => {
+  const diffDays = Math.ceil((returnedAt - borrowedAt) / (1000 * 60 * 60 * 24));
+  return diffDays > freeDays ? (diffDays - freeDays) * finePerDay : 0;
+};
 
 // Get all requests
 exports.getAllRequests = async (req, res) => {
