@@ -165,32 +165,40 @@ exports.deleteUser = async (req, res) => {
 
 exports.getUserHistory = async (req, res) => {
   const userId = req.params.id;
-  // console.log(userId)
 
   try {
-    // Fetch user with books they borrowed
-    const user = await User.findById(userId)
-      .populate('booksBorrowed', 'title author borrowedDate returnDate')
-      .populate('booksBorrowingCurrently', 'title author borrowedDate' );
-
+    const user = await User.findById(userId).select('username booksBorrowed booksBorrowingCurrently');
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Prepare response data
+    // Fetch borrowed books with history data
+    const borrowedBooks = await Book.find({ _id: { $in: user.booksBorrowed } });
+    const borrowingCurrentlyBooks = await Book.find({ _id: { $in: user.booksBorrowingCurrently } });
+
+    const booksBorrowed = borrowedBooks.map(book => {
+      const history = book.usersHistory.find(h => h.user.toString() === userId);
+      return {
+        title: book.title,
+        author: book.author,
+        borrowedDate: history?.borrowedAt || null,
+        returnDate: history?.returnedAt || 'Not returned yet',
+      };
+    });
+
+    const booksBorrowingCurrently = borrowingCurrentlyBooks.map(book => {
+      const history = book.usersHistory.find(h => h.user.toString() === userId && !h.returnedAt);
+      return {
+        title: book.title,
+        author: book.author,
+        borrowedDate: history?.borrowedAt || null,
+      };
+    });
+
     const userHistory = {
       username: user.username,
-      booksBorrowed: user.booksBorrowed.map(book => ({
-        title: book.title,
-        author: book.author,
-        borrowedDate: book.borrowedDate,
-        returnDate: book.returnDate || 'Not returned yet',
-      })),
-      booksBorrowingCurrently: user.booksBorrowingCurrently.map(book => ({
-        title: book.title,
-        author: book.author,
-        borrowedDate: book.borrowedDate,
-      })),
+      booksBorrowed,
+      booksBorrowingCurrently,
     };
 
     res.json(userHistory);
