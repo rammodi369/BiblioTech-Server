@@ -478,6 +478,77 @@ exports.createBookRequest = async (req, res) => {
 
 
 // Librarian approves/rejects a book request
+// exports.respondToRequest = async (req, res) => {
+//   const { status } = req.body;
+
+//   try {
+//     const request = await BookRequest.findById(req.params.id);
+//     if (!request) return res.status(404).json({ message: 'Request not found' });
+
+//     const book = await Book.findById(request.book);
+//     const user = await User.findById(request.user);
+//     if (!book || !user) return res.status(404).json({ message: 'Book or User not found' });
+
+//     if (request.requestType === 'borrow' && status === 'approved') {
+//       if (book.quantity <= 0) return res.status(400).json({ message: 'Book out of stock' });
+
+//       // Additional check
+//       if (user.booksBorrowingCurrently.length >= 3) {
+//         return res.status(400).json({ message: 'Borrowing limit reached. Return previous books first.' });
+//       }
+
+//       const alreadyBorrowing = user.booksBorrowingCurrently.some(
+//         (bId) => bId.toString() === book._id.toString()
+//       );
+//       if (alreadyBorrowing) {
+//         return res.status(400).json({ message: 'User is already borrowing this book.' });
+//       }
+
+//       book.quantity--;
+//       book.availability = book.quantity > 0 ? 'available' : 'outOfStock';
+//       book.usersHistory.push({ user: user._id, borrowedAt: new Date() });
+//       await book.save();
+
+//       user.booksBorrowingCurrently.push(book._id);
+//       await user.save();
+//     }
+
+//     if (request.requestType === 'return' && status === 'approved') {
+//       book.quantity++;
+//       book.availability = 'available';
+//       await book.save();
+
+//       user.booksBorrowingCurrently = user.booksBorrowingCurrently.filter(
+//         (b) => b.toString() !== book._id.toString()
+//       );
+//       user.booksBorrowed.push(book._id);
+//       await user.save();
+
+//       const historyItem = book.usersHistory.find(
+//         (entry) => entry.user.toString() === user._id.toString() && !entry.returnedAt
+//       );
+//       if (historyItem) {
+//         const borrowDate = new Date(historyItem.borrowedAt);
+//         const returnDate = new Date();
+//         historyItem.returnedAt = returnDate;
+//         await book.save();
+
+//         const daysBorrowed = Math.ceil((returnDate - borrowDate) / (1000 * 60 * 60 * 24));
+//         if (daysBorrowed > 7) {
+//           user.fine += (daysBorrowed - 7) * 20;
+//           await user.save();
+//         }
+//       }
+//     }
+
+//     request.status = status === 'approved' && request.requestType === 'return' ? 'returned' : status;
+//     request.responseDate = new Date();
+//     await request.save();
+//     res.json(request);
+//   } catch (error) {
+//     res.status(500).json({ message: error.message });
+//   }
+// };
 exports.respondToRequest = async (req, res) => {
   const { status } = req.body;
 
@@ -492,7 +563,6 @@ exports.respondToRequest = async (req, res) => {
     if (request.requestType === 'borrow' && status === 'approved') {
       if (book.quantity <= 0) return res.status(400).json({ message: 'Book out of stock' });
 
-      // Additional check
       if (user.booksBorrowingCurrently.length >= 3) {
         return res.status(400).json({ message: 'Borrowing limit reached. Return previous books first.' });
       }
@@ -527,17 +597,10 @@ exports.respondToRequest = async (req, res) => {
       const historyItem = book.usersHistory.find(
         (entry) => entry.user.toString() === user._id.toString() && !entry.returnedAt
       );
-      if (historyItem) {
-        const borrowDate = new Date(historyItem.borrowedAt);
-        const returnDate = new Date();
-        historyItem.returnedAt = returnDate;
-        await book.save();
 
-        const daysBorrowed = Math.ceil((returnDate - borrowDate) / (1000 * 60 * 60 * 24));
-        if (daysBorrowed > 7) {
-          user.fine += (daysBorrowed - 7) * 20;
-          await user.save();
-        }
+      if (historyItem) {
+        historyItem.returnedAt = new Date();
+        await book.save();
       }
     }
 
@@ -549,6 +612,32 @@ exports.respondToRequest = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+exports.calculateAllFines = async () => {
+  const users = await User.find({}).lean();
+
+  for (const user of users) {
+    let totalFine = 0;
+
+    for (const bookId of user.booksBorrowingCurrently) {
+      const book = await Book.findById(bookId);
+      if (!book) continue;
+
+      const history = book.usersHistory.find(
+        (h) => h.user.toString() === user._id.toString() && !h.returnedAt
+      );
+
+      if (history && history.borrowedAt) {
+        const fine = calculateFine(new Date(history.borrowedAt), new Date(), 21, 1);
+        totalFine += fine;
+      }
+    }
+
+    await User.findByIdAndUpdate(user._id, { fine: totalFine });
+  }
+
+  console.log('All fines updated on website load');
+};
+
 
 // Get all requests
 exports.getAllRequests = async (req, res) => {
