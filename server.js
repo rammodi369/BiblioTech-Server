@@ -17,7 +17,7 @@ const userHistoryRoutes=require('./Routes/userHistoryRoutes');
 const questionRoutes=require('./Routes/questionBankRoutes')
 const materialRoutes= require('./Routes/materialRoutes');
 const cors = require('cors');
-const calculateAllFines = require('./Controllers/bookRequestControllers');
+const { calculateAllFines } = require('./Controllers/bookRequestControllers');
 
 connectDB();
 
