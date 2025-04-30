@@ -167,38 +167,40 @@ exports.getUserHistory = async (req, res) => {
   const userId = req.params.id;
 
   try {
-    const user = await User.findById(userId).select('username booksBorrowed booksBorrowingCurrently');
+    const user = await User.findById(userId)
+      .populate({
+        path: 'booksBorrowed',
+        select: 'title author usersHistory',
+      })
+      .populate({
+        path: 'booksBorrowingCurrently',
+        select: 'title author usersHistory',
+      });
+
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Fetch borrowed books with history data
-    const borrowedBooks = await Book.find({ _id: { $in: user.booksBorrowed } });
-    const borrowingCurrentlyBooks = await Book.find({ _id: { $in: user.booksBorrowingCurrently } });
+    const processBooks = (books) => {
+      return books.map(book => {
+        // Find the user's entry in the book's usersHistory
+        const userEntry = book.usersHistory.find(entry => 
+          entry.user && entry.user.toString() === userId
+        );
+        return {
+          title: book.title,
+          author: book.author,
+          borrowedDate: userEntry ? userEntry.borrowedAt : null,
+          returnDate: userEntry ? userEntry.returnedAt : null,
+        };
+      });
+    };
 
-    const booksBorrowed = borrowedBooks.map(book => {
-      const history = book.usersHistory.find(h => h.user.toString() === userId);
-      return {
-        title: book.title,
-        author: book.author,
-        borrowedDate: history?.borrowedAt || null,
-        returnDate: history?.returnedAt || 'Not returned yet',
-      };
-    });
-
-    const booksBorrowingCurrently = borrowingCurrentlyBooks.map(book => {
-      const history = book.usersHistory.find(h => h.user.toString() === userId && !h.returnedAt);
-      return {
-        title: book.title,
-        author: book.author,
-        borrowedDate: history?.borrowedAt || null,
-      };
-    });
-
+    // Prepare response data with processed books
     const userHistory = {
       username: user.username,
-      booksBorrowed,
-      booksBorrowingCurrently,
+      booksBorrowed: processBooks(user.booksBorrowed),
+      booksBorrowingCurrently: processBooks(user.booksBorrowingCurrently),
     };
 
     res.json(userHistory);
