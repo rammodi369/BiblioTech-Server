@@ -17,6 +17,7 @@ const userHistoryRoutes=require('./Routes/userHistoryRoutes');
 const questionRoutes=require('./Routes/questionBankRoutes')
 const materialRoutes= require('./Routes/materialRoutes');
 const cors = require('cors');
+const calculateAllFines = require('./Controllers/bookRequestControllers');
 
 connectDB();
 
@@ -45,6 +46,7 @@ app.use((err, req, res, next) => {
 
 app.listen(PORT,()=>{
     console.log("Server is running on PORT :",PORT);
+    await calculateAllFines();
 })
 app.post('/create-order', async (req, res) => {
   const { amount, currency, receipt } = req.body;
