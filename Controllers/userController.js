@@ -226,12 +226,41 @@ exports.markFinePaid = async (req, res) => {
   }
 };
 // Route: POST /api/auth/create-payment-intent
+// exports.paymentHandler = async (req, res) => {
+//   const { amount, user } = req.body;
+
+//   try {
+//     const paymentIntent = await stripe.paymentIntents.create({
+//       amount,
+//       currency: 'inr',
+//       payment_method_types: ['card'],
+//       description: `Library fine payment for ${user.username}`
+//     });
+
+//     res.json({
+//       clientSecret: paymentIntent.client_secret
+//     });
+//   } catch (error) {
+//     console.error("Error creating PaymentIntent:", error);
+//     res.status(500).json({ error: error.message });
+//   }
+// };
 exports.paymentHandler = async (req, res) => {
   const { amount, user } = req.body;
 
   try {
+    // Convert rupees to paise (smallest currency unit)
+    const amountInPaise = Math.round(amount * 100);
+    
+    // Validate minimum amount
+    if (amountInPaise < 50) {
+      return res.status(400).json({ 
+        error: "Amount must be at least ₹0.50 INR" 
+      });
+    }
+
     const paymentIntent = await stripe.paymentIntents.create({
-      amount,
+      amount: amountInPaise,  // Use converted amount
       currency: 'inr',
       payment_method_types: ['card'],
       description: `Library fine payment for ${user.username}`
@@ -245,7 +274,6 @@ exports.paymentHandler = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
-
 
 exports.getUserProfileData = async (req, res) => {
   console.log('here');
