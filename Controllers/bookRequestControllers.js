@@ -414,6 +414,68 @@ const Book = require('../Model/bookModel');
 const User = require('../Model/userModel');
 
 // Student creates a book request
+// exports.createBookRequest = async (req, res) => {
+//   const userId = req.user.id;
+//   const { bookId, requestType } = req.body;
+
+//   try {
+//     const user = await User.findById(userId);
+//     if (!user) return res.status(404).json({ message: 'User not found' });
+
+//     const book = await Book.findById(bookId);
+//     if (!book) return res.status(404).json({ message: 'Book not found' });
+
+//     const isCurrentlyBorrowing = user.booksBorrowingCurrently.some(
+//       (bId) => bId.toString() === bookId
+//     );
+
+//     if (requestType === 'borrow') {
+//       if (isCurrentlyBorrowing) {
+//         return res.status(400).json({ message: 'You are already borrowing this book.' });
+//       }
+
+//       if (user.booksBorrowingCurrently.length >= 3) {
+//         return res.status(400).json({ message: 'Borrowing limit reached. Return some books to borrow new ones.' });
+//       }
+
+//       // Prevent borrowing again within 30 days
+//       const thirtyDaysAgo = new Date();
+//       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+//       const recentReturn = await BookRequest.findOne({
+//         user: userId,
+//         book: bookId,
+//         status: 'returned',
+//         responseDate: { $gte: thirtyDaysAgo },
+//       });
+//       if (recentReturn) {
+//         return res.status(400).json({ message: 'You have already accessed this book in the past 30 days. Please try another one.' });
+//       }
+//     }
+
+//     if (requestType === 'return') {
+//       if (!isCurrentlyBorrowing) {
+//         return res.status(400).json({ message: 'You cannot return a book you have not borrowed.' });
+//       }
+//     }
+
+//     // Prevent duplicate pending requests
+//     const existingPendingRequest = await BookRequest.findOne({
+//       user: userId,
+//       book: bookId,
+//       status: 'pending',
+//     });
+//     if (existingPendingRequest) {
+//       return res.status(400).json({ message: 'You already have a pending request for this book.' });
+//     }
+
+//     const bookRequest = new BookRequest({ user: userId, book: bookId, requestType });
+//     const savedRequest = await bookRequest.save();
+//     res.status(201).json(savedRequest);
+//   } catch (error) {
+//     res.status(500).json({ message: error.message });
+//   }
+// };
+
 exports.createBookRequest = async (req, res) => {
   const userId = req.user.id;
   const { bookId, requestType } = req.body;
@@ -430,6 +492,13 @@ exports.createBookRequest = async (req, res) => {
     );
 
     if (requestType === 'borrow') {
+      // Check for outstanding fines first
+      if (user.fine > 0) {
+        return res.status(400).json({ 
+          message: 'You have an outstanding fine. Please clear your dues before borrowing new books.' 
+        });
+      }
+
       if (isCurrentlyBorrowing) {
         return res.status(400).json({ message: 'You are already borrowing this book.' });
       }
@@ -475,8 +544,6 @@ exports.createBookRequest = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
-
-
 // Librarian approves/rejects a book request
 // exports.respondToRequest = async (req, res) => {
 //   const { status } = req.body;
